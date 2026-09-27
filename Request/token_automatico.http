@@ -1,0 +1,20 @@
+@api = http://localhost:3700
+
+### Login: le ponemos un NOMBRE al request con "# @name"
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "nombre_usuario": "mrodriguez.anh",
+  "password": "ClaveSegura123"
+}
+
+### Cualquier request de aquí en adelante puede usar el token
+### de la respuesta del request "login" sin copiar/pegar nada:
+GET {{api}}/auth/perfil
+Authorization: Bearer {{login.response.body.token}}
+
+###
+GET {{api}}/lista/users
+Authorization: Bearer {{login.response.body.token}}

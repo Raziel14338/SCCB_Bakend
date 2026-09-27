@@ -1,0 +1,138 @@
+@api = http://localhost:3700
+@token = PEGAR_AQUI_EL_TOKEN_DEVUELTO_POR_LOGIN
+
+### ==========================================================
+### AUTH
+### ==========================================================
+
+### Registrar un nuevo usuario (ej: fiscalizador de la ANH)
+POST {{api}}/auth/registro
+Content-Type: application/json
+
+{
+  "nombre_usuario": "mrodriguez.anh",
+  "password": "ClaveSegura123",
+  "nombre_completo": "Mariana Rodríguez Peña",
+  "correo": "mrodriguez@anh.gob.bo",
+  "institucion": "ANH",
+  "id_rol": 2
+}
+
+### Registrar un administrador de red (rol usado por verificarRol)
+POST {{api}}/auth/registro
+Content-Type: application/json
+
+{
+  "nombre_usuario": "aochoa.admin2",
+  "password": "ClaveSegura123",
+  "nombre_completo": "Ariel Ochoa Salazar",
+  "correo": "aochoa2@sistema.bo",
+  "institucion": "ADMIN_SISTEMA",
+  "id_rol": 3
+}
+
+### Intentar registrar con un correo/usuario ya existente -> 409
+POST {{api}}/auth/registro
+Content-Type: application/json
+
+{
+  "nombre_usuario": "mrodriguez.anh",
+  "password": "OtraClave123",
+  "nombre_completo": "Duplicado Test",
+  "correo": "mrodriguez@anh.gob.bo",
+  "institucion": "ANH",
+  "id_rol": 2
+}
+
+### Registrar con rol inexistente -> 400
+POST {{api}}/auth/registro
+Content-Type: application/json
+
+{
+  "nombre_usuario": "usuario.rolfalso",
+  "password": "ClaveSegura123",
+  "nombre_completo": "Prueba Rol",
+  "correo": "prueba.rol@sistema.bo",
+  "institucion": "ANH",
+  "id_rol": 999
+}
+
+### Login correcto -> copiar el "token" de la respuesta a @token arriba
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "nombre_usuario": "mrodriguez.anh",
+  "password": "ClaveSegura123"
+}
+
+### Login con contraseña incorrecta -> 401
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "nombre_usuario": "mrodriguez.anh",
+  "password": "ClaveIncorrecta"
+}
+
+### Login con usuario inexistente -> 401
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "nombre_usuario": "noexiste.usuario",
+  "password": "ClaveSegura123"
+}
+
+### Perfil del usuario autenticado (requiere @token)
+GET {{api}}/auth/perfil
+Authorization: Bearer {{token}}
+
+### Perfil sin token -> 401
+GET {{api}}/auth/perfil
+
+### Perfil con token inválido -> 401
+GET {{api}}/auth/perfil
+Authorization: Bearer token.invalido.123
+
+
+### ==========================================================
+### USERS  (todas requieren @token, ver middleware verificarToken)
+### ==========================================================
+
+### Listar todos los usuarios
+GET {{api}}/users
+Authorization: Bearer {{token}}
+
+### Listar usuarios filtrando por nombre de rol
+GET {{api}}/users?rol=FISCAL_ANH
+Authorization: Bearer {{token}}
+
+### Listar usuarios filtrando por institución
+GET {{api}}/users?institucion=YPFB
+Authorization: Bearer {{token}}
+
+### Listar usuarios combinando filtros (rol + institución)
+GET {{api}}/users?rol=OPERADOR_ESTACION&institucion=ESTACION_SERVICIO
+Authorization: Bearer {{token}}
+
+### Obtener perfil de un usuario puntual por id
+GET {{api}}/users/1
+Authorization: Bearer {{token}}
+
+### Usuario inexistente -> 404
+GET {{api}}/users/9999
+Authorization: Bearer {{token}}
+
+### Desactivar usuario (requiere rol ADMIN_RED en el token, ver verificarRol)
+PATCH {{api}}/users/1/desactivar
+Authorization: Bearer {{token}}
+
+### Reactivar usuario (requiere rol ADMIN_RED en el token)
+PATCH {{api}}/users/1/reactivar
+Authorization: Bearer {{token}}
+
+### Desactivar sin permisos de ADMIN_RED -> 403
+### (usar un @token de login con otro rol, ej. FISCAL_ANH u OPERADOR_YPFB)
+PATCH {{api}}/users/1/desactivar
+Authorization: Bearer {{token}}
