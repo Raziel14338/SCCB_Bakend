@@ -1,0 +1,149 @@
+@api = http://localhost:3700
+
+### ==========================================================
+### (Opcional) Login, por si más adelante proteges estas rutas
+### con verificarToken. Por ahora analytics.routes.js NO exige
+### token, así que puedes ignorar este bloque y correr directo
+### los requests de abajo.
+### ==========================================================
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "nombre_usuario": "mrodriguez.anh",
+  "password": "ClaveSegura123"
+}
+
+
+### ==========================================================
+### ALERTAS
+### ==========================================================
+
+### Registrar una alerta ligada a una cisterna (usa id_cisterna=1, ya existe en tu seed)
+POST {{api}}/alertas
+Content-Type: application/json
+
+{
+  "tipo_alerta": "MERMA_IRREGULAR",
+  "descripcion": "Diferencia de 500 litros detectada entre salida y telemetría en ruta.",
+  "severidad": "ALTA",
+  "id_cisterna": 1
+}
+
+### Registrar una alerta ligada a un vehículo (cupo excedido)
+POST {{api}}/alertas
+Content-Type: application/json
+
+{
+  "tipo_alerta": "CUPO_EXCEDIDO",
+  "descripcion": "Vehículo 9012-JKL intentó despacho superando su cupo mensual.",
+  "severidad": "CRITICA",
+  "id_vehiculo": 3
+}
+
+### Registrar una alerta ligada a una estación
+POST {{api}}/alertas
+Content-Type: application/json
+
+{
+  "tipo_alerta": "ACCESO_NO_AUTORIZADO",
+  "descripcion": "Intento de despacho con credencial RFID no reconocida.",
+  "severidad": "CRITICA",
+  "id_estacion": 1
+}
+
+### Caso de error: tipo_alerta fuera del ENUM -> 400
+POST {{api}}/alertas
+Content-Type: application/json
+
+{
+  "tipo_alerta": "TIPO_INVENTADO",
+  "descripcion": "Esto debería fallar la validación.",
+  "id_cisterna": 1
+}
+
+### Caso de error: sin ninguna referencia (cisterna/vehículo/estación) -> 400
+POST {{api}}/alertas
+Content-Type: application/json
+
+{
+  "tipo_alerta": "TIEMPO_MUERTO",
+  "descripcion": "Esto también debería fallar: no indica a qué está ligada la alerta."
+}
+
+### Listar TODAS las alertas (sin filtros, histórico completo)
+GET {{api}}/alertas
+
+### Listar solo alertas activas (abiertas o en revisión) — el filtro más común para un dashboard
+GET {{api}}/alertas?estado=ABIERTA,EN_REVISION
+
+### Listar solo alertas críticas
+GET {{api}}/alertas?severidad=CRITICA
+
+### Combinar ambos filtros
+GET {{api}}/alertas?estado=ABIERTA&severidad=CRITICA,ALTA
+
+### Consultar una alerta puntual por id (ajusta el id según lo que te haya devuelto el POST)
+GET {{api}}/alertas/1
+
+### Alerta inexistente -> 404
+GET {{api}}/alertas/9999
+
+### Marcar una alerta como EN_REVISION (un fiscal la está mirando)
+PATCH {{api}}/alertas/1/estado
+Content-Type: application/json
+
+{
+  "estado": "EN_REVISION",
+  "id_usuario_resolucion": 2
+}
+
+### Cerrar la alerta como RESUELTA (esto sella fecha_resolucion)
+PATCH {{api}}/alertas/1/estado
+Content-Type: application/json
+
+{
+  "estado": "RESUELTA",
+  "id_usuario_resolucion": 2
+}
+
+### Cerrar otra alerta como DESCARTADA (falsa alarma)
+PATCH {{api}}/alertas/2/estado
+Content-Type: application/json
+
+{
+  "estado": "DESCARTADA",
+  "id_usuario_resolucion": 2
+}
+
+### Caso de error: estado fuera del ENUM -> 400
+PATCH {{api}}/alertas/1/estado
+Content-Type: application/json
+
+{
+  "estado": "ESTADO_INVENTADO"
+}
+
+
+### ==========================================================
+### REPORTES (solo lectura, para dashboards YPFB / ANH)
+### ==========================================================
+
+### Estadísticas generales de HOY (sin parámetro fecha)
+GET {{api}}/reportes/estadisticas
+
+### Estadísticas de un día específico donde ya tienes datos de despacho/telemetría
+GET {{api}}/reportes/estadisticas?fecha=2026-09-26
+
+### Caso de error: formato de fecha inválido -> 400
+GET {{api}}/reportes/estadisticas?fecha=26-09-2026
+
+### Cruce volumétrico completo (sin filtro de fechas, todo el histórico de inventario)
+GET {{api}}/reportes/cruce-volumetrico
+
+### Cruce volumétrico acotado a un rango de fechas
+GET {{api}}/reportes/cruce-volumetrico?fecha_inicio=2026-09-01&fecha_fin=2026-09-30
+
+### Caso de error: fecha_fin con formato inválido -> 400
+GET {{api}}/reportes/cruce-volumetrico?fecha_inicio=2026-09-01&fecha_fin=30-09-2026

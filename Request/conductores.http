@@ -1,0 +1,122 @@
+### ====================================================================
+### Pruebas HTTP - API de Gestión de Conductores (CI cifrada AES-256-GCM)
+### Compatible con REST Client (VS Code) / WebStorm HTTP Client
+### ====================================================================
+
+@baseUrl = http://localhost:3700
+@conductorId = 5
+@conductorIdInexistente = 9999
+@contentType = application/json
+
+### ====================================================================
+### 1. REGISTRO DE CONDUCTORES
+### ====================================================================
+
+### 1.1 Crear conductor con todos los campos - Espera 201
+POST {{baseUrl}}/conductores
+Content-Type: {{contentType}}
+
+{
+  "nombre_completo": "Juan Carlos Mamani Quispe",
+  "ci": "5487213 LP",
+  "licencia_conducir": "LIC-LP-0034521",
+  "telefono": "71234567"
+}
+
+### 1.2 Crear conductor solo con campos obligatorios - Espera 201
+# licencia_conducir y telefono se omiten; el service los guarda como null.
+POST {{baseUrl}}/conductores
+Content-Type: {{contentType}}
+
+{
+  "nombre_completo": "María Fernanda Choque Apaza",
+  "ci": "6123489 SC"
+}
+
+### 1.3 Falla por CI duplicada - Espera 409
+# Usa exactamente la misma CI de 1.1; ci_hash coincidirá y debe rechazarse.
+POST {{baseUrl}}/conductores
+Content-Type: {{contentType}}
+
+{
+  "nombre_completo": "Otro Nombre Distinto",
+  "ci": "5487213 LP",
+  "telefono": "76543210"
+}
+
+### 1.4 Falla por campos obligatorios faltantes - Espera 400
+# Falta el campo "ci".
+POST {{baseUrl}}/conductores
+Content-Type: {{contentType}}
+
+{
+  "nombre_completo": "Conductor Sin CI"
+}
+
+### ====================================================================
+### 2. LISTADO DE CONDUCTORES
+### ====================================================================
+
+### 2.1 Listar todos los conductores (sin filtro) - Espera 200
+# Respuesta NO incluye la CI desencriptada (solo el listado usa columnas seguras).
+GET {{baseUrl}}/obtener/conductores
+
+### 2.2 Listar conductores filtrados por estado ACTIVO - Espera 200
+GET {{baseUrl}}/obtener/conductores?estado=ACTIVO
+
+### 2.3 Listar conductores filtrados por estado INACTIVO - Espera 200
+GET {{baseUrl}}/obtener/conductores?estado=INACTIVO
+
+### ====================================================================
+### 3. CONSULTA DE CONDUCTOR POR ID
+### ====================================================================
+
+### 3.1 Obtener conductor existente por id - Espera 200
+# Endpoint sensible: la respuesta SÍ incluye la CI desencriptada en texto plano.
+GET {{baseUrl}}/conductores/{{conductorId}}
+
+### 3.2 Obtener conductor con id inexistente - Espera 404
+GET {{baseUrl}}/conductores/{{conductorIdInexistente}}
+
+### ====================================================================
+### 4. ACTUALIZACIÓN DE ESTADO
+### ====================================================================
+
+### 4.1 Cambiar estado a INACTIVO - Espera 200
+PATCH {{baseUrl}}/conductores/{{conductorId}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "INACTIVO"
+}
+
+### 4.2 Volver a dejar el conductor ACTIVO - Espera 200
+PATCH {{baseUrl}}/conductores/{{conductorId}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "ACTIVO"
+}
+
+### 4.3 Falla por estado inválido "SUSPENDIDO" - Espera 400
+# Solo se permiten "ACTIVO" o "INACTIVO"; SUSPENDIDO no está en la lista.
+PATCH {{baseUrl}}/conductores/{{conductorId}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "SUSPENDIDO"
+}
+
+### 4.4 Falla por campo estado ausente - Espera 400
+PATCH {{baseUrl}}/conductores/{{conductorId}}/estado
+Content-Type: {{contentType}}
+
+{}
+
+### 4.5 Falla por id de conductor inexistente - Espera 404
+PATCH {{baseUrl}}/conductores/{{conductorIdInexistente}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "ACTIVO"
+}

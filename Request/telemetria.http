@@ -1,0 +1,112 @@
+### ====================================================================
+### Pruebas HTTP - API de Telemetría IoT (ingesta ESP32 / Proteus)
+### Compatible con REST Client (VS Code) / WebStorm HTTP Client
+### NOTA: las rutas van directas en la raíz (sin prefijo /api).
+### ====================================================================
+
+@baseUrl = http://localhost:3700
+@idCisterna = 1
+@idCisternaSinRegistros = 9999
+@contentType = application/json
+
+### ====================================================================
+### 1. INGESTA DE TELEMETRÍA (POST /telemetria/registro)
+### ====================================================================
+
+### 1.1 Ingesta de telemetría válida (todos los campos) - Espera 201
+# Coordenadas de referencia: ciudad de La Paz, Bolivia.
+POST {{baseUrl}}/telemetria/registro
+Content-Type: {{contentType}}
+
+{
+  "id_cisterna": {{idCisterna}},
+  "latitud": -16.500000,
+  "longitud": -68.150000,
+  "nivel_carga": 87.5,
+  "flujo_instantaneo": 12.3,
+  "velocidad_kmh": 45,
+  "evento": "EN_RUTA"
+}
+
+### 1.2 Ingesta de telemetría solo con campos obligatorios - Espera 201
+# flujo_instantaneo, velocidad_kmh y evento se omiten; el service usa
+# null para los dos primeros y "EN_RUTA" como default para evento.
+POST {{baseUrl}}/telemetria/registro
+Content-Type: {{contentType}}
+
+{
+  "id_cisterna": {{idCisterna}},
+  "latitud": -16.502100,
+  "longitud": -68.133200,
+  "nivel_carga": 82.0
+}
+
+### 1.3 Falla por falta de nivel_carga - Espera 400
+POST {{baseUrl}}/telemetria/registro
+Content-Type: {{contentType}}
+
+{
+  "id_cisterna": {{idCisterna}},
+  "latitud": -16.500000,
+  "longitud": -68.150000
+}
+
+### 1.4 Falla por tipo de dato inválido en latitud (NaN) - Espera 400
+# El controlador rechaza con Number.isNaN(Number(valor)) antes de tocar el service.
+POST {{baseUrl}}/telemetria/registro
+Content-Type: {{contentType}}
+
+{
+  "id_cisterna": {{idCisterna}},
+  "latitud": "norte",
+  "longitud": -68.150000,
+  "nivel_carga": 50
+}
+
+### 1.5 Falla por cisterna inexistente - Espera 404
+POST {{baseUrl}}/telemetria/registro
+Content-Type: {{contentType}}
+
+{
+  "id_cisterna": {{idCisternaSinRegistros}},
+  "latitud": -16.500000,
+  "longitud": -68.150000,
+  "nivel_carga": 50
+}
+
+### 1.6 Ingesta con evento de DESCARGA - Espera 201
+POST {{baseUrl}}/telemetria/registro
+Content-Type: {{contentType}}
+
+{
+  "id_cisterna": {{idCisterna}},
+  "latitud": -16.489500,
+  "longitud": -68.119000,
+  "nivel_carga": 10.0,
+  "flujo_instantaneo": 0,
+  "velocidad_kmh": 0,
+  "evento": "DESCARGA"
+}
+
+### ====================================================================
+### 2. ÚLTIMO ESTADO CONOCIDO (GET /telemetria/cisterna/:id_cisterna)
+### ====================================================================
+
+### 2.1 Obtener último estado de una cisterna con registros - Espera 200
+GET {{baseUrl}}/telemetria/cisterna/{{idCisterna}}
+
+### 2.2 Obtener último estado de una cisterna sin registros - Espera 404
+GET {{baseUrl}}/telemetria/cisterna/{{idCisternaSinRegistros}}
+
+### ====================================================================
+### 3. HISTORIAL DE TELEMETRÍA (GET /telemetria/cisterna/:id_cisterna/historial)
+### ====================================================================
+
+### 3.1 Obtener historial con límite por defecto (50) - Espera 200
+GET {{baseUrl}}/telemetria/cisterna/{{idCisterna}}/historial
+
+### 3.2 Obtener historial con límite explícito de 10 registros - Espera 200
+GET {{baseUrl}}/telemetria/cisterna/{{idCisterna}}/historial?limite=10
+
+### 3.3 Obtener historial de una cisterna sin registros - Espera 200 (lista vacía)
+GET {{baseUrl}}/telemetria/cisterna/{{idCisternaSinRegistros}}/historial

@@ -1,0 +1,376 @@
+### ====================================================================
+### Pruebas HTTP - Módulo de Infraestructura e Inventario/Despachos
+### Compatible con REST Client (VS Code) / WebStorm HTTP Client
+### NOTA: las rutas van directas en la raíz (sin prefijo /api).
+### ====================================================================
+
+@baseUrl = http://localhost:3700
+@idCentro = 1
+@idEstacion = 1
+@idSurtidor = 1
+@idVehiculo = 1
+@idCisterna = 1
+@idConductor = 1
+@idUsuario = 1
+@idInexistente = 9999
+@codigoYpfbTest = YPFB-LP-0451
+@rfidVehiculoTest = 04-AB-CD-EF-12-34-56
+@contentType = application/json
+
+### ====================================================================
+### 1. CENTROS DE ACOPIO
+### ====================================================================
+
+### 1.1 Crear centro de acopio - Espera 201
+POST {{baseUrl}}/centros-acopio
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Centro de Acopio El Alto",
+  "ubicacion": "Zona Industrial, El Alto, La Paz",
+  "latitud": -16.504700,
+  "longitud": -68.163000,
+  "capacidad_almacen": 500000
+}
+
+### 1.2 Crear centro de acopio sin coordenadas (opcionales) - Espera 201
+POST {{baseUrl}}/centros-acopio
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Centro de Acopio Senkata",
+  "ubicacion": "Av. 6 de Marzo, Senkata, La Paz",
+  "capacidad_almacen": 350000
+}
+
+### 1.3 Falla al crear centro de acopio por falta de capacidad_almacen - Espera 400
+POST {{baseUrl}}/centros-acopio
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Centro de Acopio Incompleto",
+  "ubicacion": "Ubicación de prueba"
+}
+
+### 1.4 Listar todos los centros de acopio (sin filtro) - Espera 200
+GET {{baseUrl}}/obtener/centros-acopio
+
+### 1.5 Listar centros de acopio filtrados por estado OPERATIVO - Espera 200
+GET {{baseUrl}}/obtener/centros-acopio?estado=OPERATIVO
+
+### 1.6 Obtener centro de acopio por ID - Espera 200
+GET {{baseUrl}}/centros-acopio/{{idCentro}}
+
+### 1.7 Obtener centro de acopio con ID inexistente - Espera 404
+GET {{baseUrl}}/centros-acopio/{{idInexistente}}
+
+### 1.8 Actualizar centro de acopio (update parcial) - Espera 200
+# Solo se envían los campos a modificar; el service conserva el resto.
+PUT {{baseUrl}}/centros-acopio/{{idCentro}}
+Content-Type: {{contentType}}
+
+{
+  "capacidad_almacen": 600000,
+  "estado": "OPERATIVO"
+}
+
+### 1.9 Falla al actualizar centro de acopio con ID inexistente - Espera 404
+PUT {{baseUrl}}/centros-acopio/{{idInexistente}}
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Nombre que nunca se guardará"
+}
+
+### 1.10 Eliminar centro de acopio - Espera 200
+DELETE {{baseUrl}}/centros-acopio/{{idCentro}}
+
+### 1.11 Falla al eliminar centro de acopio con ID inexistente - Espera 404
+DELETE {{baseUrl}}/centros-acopio/{{idInexistente}}
+
+### ====================================================================
+### 2. ESTACIONES DE SERVICIO
+### ====================================================================
+
+### 2.1 Crear estación de servicio - Espera 201
+POST {{baseUrl}}/estaciones
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Estación de Servicio Miraflores",
+  "codigo_ypfb": "{{codigoYpfbTest}}",
+  "ubicacion": "Av. Busch, Miraflores, La Paz",
+  "latitud": -16.494800,
+  "longitud": -68.128900
+}
+
+### 2.2 Falla al crear estación duplicada (mismo codigo_ypfb) - Espera 409
+POST {{baseUrl}}/estaciones
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Otra Estación con Mismo Código",
+  "codigo_ypfb": "{{codigoYpfbTest}}",
+  "ubicacion": "Otra ubicación cualquiera"
+}
+
+### 2.3 Falla al crear estación por falta de codigo_ypfb - Espera 400
+POST {{baseUrl}}/estaciones
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Estación Incompleta",
+  "ubicacion": "Ubicación de prueba"
+}
+
+### 2.4 Listar todas las estaciones (sin filtro) - Espera 200
+GET {{baseUrl}}/obtener/estaciones
+
+### 2.5 Listar estaciones filtradas por estado OPERATIVA - Espera 200
+GET {{baseUrl}}/obtener/estaciones?estado=OPERATIVA
+
+### 2.6 Obtener estación por ID - Espera 200
+GET {{baseUrl}}/estaciones/{{idEstacion}}
+
+### 2.7 Obtener estación con ID inexistente - Espera 404
+GET {{baseUrl}}/estaciones/{{idInexistente}}
+
+### 2.8 Actualizar estación (update parcial) - Espera 200
+PUT {{baseUrl}}/estaciones/{{idEstacion}}
+Content-Type: {{contentType}}
+
+{
+  "estado": "MANTENIMIENTO"
+}
+
+### 2.9 Falla al actualizar estación con ID inexistente - Espera 404
+PUT {{baseUrl}}/estaciones/{{idInexistente}}
+Content-Type: {{contentType}}
+
+{
+  "nombre": "Nombre que nunca se guardará"
+}
+
+### 2.10 Eliminar estación - Espera 200
+# OJO: por ON DELETE CASCADE, esto borra también los surtidores asociados.
+DELETE {{baseUrl}}/estaciones/{{idEstacion}}
+
+### 2.11 Falla al eliminar estación con ID inexistente - Espera 404
+DELETE {{baseUrl}}/estaciones/{{idInexistente}}
+
+### ====================================================================
+### 3. SURTIDORES
+### ====================================================================
+
+### 3.1 Crear surtidor con OCR y RFID explícitos - Espera 201
+POST {{baseUrl}}/surtidores
+Content-Type: {{contentType}}
+
+{
+  "id_estacion": {{idEstacion}},
+  "numero_surtidor": "S-01",
+  "tipo_combustible": "DIESEL",
+  "tiene_ocr": true,
+  "tiene_rfid": true
+}
+
+### 3.2 Crear surtidor sin tiene_ocr/tiene_rfid (usan default true) - Espera 201
+POST {{baseUrl}}/surtidores
+Content-Type: {{contentType}}
+
+{
+  "id_estacion": {{idEstacion}},
+  "numero_surtidor": "S-02",
+  "tipo_combustible": "GASOLINA_ESPECIAL"
+}
+
+### 3.3 Falla al crear surtidor duplicado (mismo numero_surtidor en la estación) - Espera 409
+POST {{baseUrl}}/surtidores
+Content-Type: {{contentType}}
+
+{
+  "id_estacion": {{idEstacion}},
+  "numero_surtidor": "S-01",
+  "tipo_combustible": "DIESEL"
+}
+
+### 3.4 Falla al crear surtidor en estación inexistente - Espera 404
+POST {{baseUrl}}/surtidores
+Content-Type: {{contentType}}
+
+{
+  "id_estacion": {{idInexistente}},
+  "numero_surtidor": "S-01",
+  "tipo_combustible": "DIESEL"
+}
+
+### 3.5 Falla al crear surtidor por campos obligatorios faltantes - Espera 400
+POST {{baseUrl}}/surtidores
+Content-Type: {{contentType}}
+
+{
+  "id_estacion": {{idEstacion}}
+}
+
+### 3.6 Listar todos los surtidores (todas las estaciones) - Espera 200
+GET {{baseUrl}}/obtener/surtidores
+
+### 3.7 Listar surtidores de una estación específica - Espera 200
+GET {{baseUrl}}/estaciones/{{idEstacion}}/surtidores
+
+### 3.8 Listar surtidores de una estación sin surtidores registrados - Espera 200 (lista vacía)
+GET {{baseUrl}}/estaciones/{{idInexistente}}/surtidores
+
+### ====================================================================
+### 4. INVENTARIO (TRANSFERENCIAS CENTRO -> ESTACIÓN)
+### ====================================================================
+
+### 4.1 Registrar transferencia con documento_referencia explícito - Espera 201
+POST {{baseUrl}}/inventario/transferencia
+Content-Type: {{contentType}}
+
+{
+  "id_centro_acopio": {{idCentro}},
+  "id_estacion": {{idEstacion}},
+  "id_cisterna": {{idCisterna}},
+  "tipo_combustible": "DIESEL",
+  "volumen": 15000,
+  "documento_referencia": "GUIA-REM-000123",
+  "id_usuario_registro": {{idUsuario}}
+}
+
+### 4.2 Registrar transferencia sin documento_referencia (se autogenera) - Espera 201
+POST {{baseUrl}}/inventario/transferencia
+Content-Type: {{contentType}}
+
+{
+  "id_centro_acopio": {{idCentro}},
+  "id_estacion": {{idEstacion}},
+  "tipo_combustible": "GASOLINA_ESPECIAL",
+  "volumen": 8000,
+  "id_usuario_registro": {{idUsuario}}
+}
+
+### 4.3 Falla al registrar transferencia por datos faltantes - Espera 400
+# Falta id_usuario_registro (y en este caso también volumen).
+POST {{baseUrl}}/inventario/transferencia
+Content-Type: {{contentType}}
+
+{
+  "id_centro_acopio": {{idCentro}},
+  "id_estacion": {{idEstacion}},
+  "tipo_combustible": "DIESEL"
+}
+
+### 4.4 Falla al registrar transferencia con centro de acopio inexistente - Espera 404
+POST {{baseUrl}}/inventario/transferencia
+Content-Type: {{contentType}}
+
+{
+  "id_centro_acopio": {{idInexistente}},
+  "id_estacion": {{idEstacion}},
+  "tipo_combustible": "DIESEL",
+  "volumen": 5000,
+  "id_usuario_registro": {{idUsuario}}
+}
+
+### 4.5 Listar todo el inventario (sin filtros) - Espera 200
+GET {{baseUrl}}/obtener/inventario
+
+### 4.6 Listar inventario filtrado por id_centro_acopio - Espera 200
+GET {{baseUrl}}/obtener/inventario?id_centro_acopio={{idCentro}}
+
+### 4.7 Listar inventario filtrado por id_estacion y tipo_movimiento - Espera 200
+GET {{baseUrl}}/obtener/inventario?id_estacion={{idEstacion}}&tipo_movimiento=ENTRADA
+
+### ====================================================================
+### 5. DESPACHOS (VENTAS A VEHÍCULOS)
+### ====================================================================
+
+### 5.1 Registrar despacho identificado por RFID - Espera 201 (AUTORIZADO)
+# Requiere que el vehículo tenga cupo vigente con saldo suficiente.
+POST {{baseUrl}}/despachos
+Content-Type: {{contentType}}
+
+{
+  "id_surtidor": {{idSurtidor}},
+  "rfid_tag_o_placa": "{{rfidVehiculoTest}}",
+  "id_conductor": {{idConductor}},
+  "id_usuario_operador": {{idUsuario}},
+  "volumen_despachado": 40,
+  "metodo_identificacion": "RFID"
+}
+
+### 5.2 Registrar despacho identificado por placa (metodo_identificacion omitido) - Espera 201
+# metodo_identificacion no se envía; el service usa "RFID" como default.
+POST {{baseUrl}}/despachos
+Content-Type: {{contentType}}
+
+{
+  "id_surtidor": {{idSurtidor}},
+  "rfid_tag_o_placa": "1234-ABC",
+  "id_conductor": {{idConductor}},
+  "id_usuario_operador": {{idUsuario}},
+  "volumen_despachado": 25
+}
+
+### 5.3 Falla al registrar despacho por falta de volumen_despachado - Espera 400
+POST {{baseUrl}}/despachos
+Content-Type: {{contentType}}
+
+{
+  "id_surtidor": {{idSurtidor}},
+  "rfid_tag_o_placa": "{{rfidVehiculoTest}}",
+  "id_conductor": {{idConductor}},
+  "id_usuario_operador": {{idUsuario}}
+}
+
+### 5.4 Falla al registrar despacho con vehículo/RFID inexistente - Espera 404
+POST {{baseUrl}}/despachos
+Content-Type: {{contentType}}
+
+{
+  "id_surtidor": {{idSurtidor}},
+  "rfid_tag_o_placa": "00-00-00-00-00-00-00",
+  "id_conductor": {{idConductor}},
+  "id_usuario_operador": {{idUsuario}},
+  "volumen_despachado": 30
+}
+
+### 5.5 Falla al registrar despacho en surtidor fuera de servicio - Espera 409
+# Requiere que id_surtidor apunte a un surtidor con estado != 'OPERATIVO'.
+POST {{baseUrl}}/despachos
+Content-Type: {{contentType}}
+
+{
+  "id_surtidor": {{idInexistente}},
+  "rfid_tag_o_placa": "{{rfidVehiculoTest}}",
+  "id_conductor": {{idConductor}},
+  "id_usuario_operador": {{idUsuario}},
+  "volumen_despachado": 20
+}
+
+### 5.6 Falla al registrar despacho por cupo agotado/insuficiente - Espera 403 o similar
+# El intento queda registrado como DENEGADO en despachos para trazabilidad.
+POST {{baseUrl}}/despachos
+Content-Type: {{contentType}}
+
+{
+  "id_surtidor": {{idSurtidor}},
+  "rfid_tag_o_placa": "{{rfidVehiculoTest}}",
+  "id_conductor": {{idConductor}},
+  "id_usuario_operador": {{idUsuario}},
+  "volumen_despachado": 999999
+}
+
+### 5.7 Listar todos los despachos (sin filtros) - Espera 200
+GET {{baseUrl}}/obtener/despachos
+
+### 5.8 Listar despachos filtrados por id_surtidor - Espera 200
+GET {{baseUrl}}/obtener/despachos?id_surtidor={{idSurtidor}}
+
+### 5.9 Listar despachos filtrados por id_vehiculo y estado_transaccion - Espera 200
+GET {{baseUrl}}/obtener/despachos?id_vehiculo={{idVehiculo}}&estado_transaccion=AUTORIZADO
+
+### 5.10 Listar despachos denegados (auditoría) - Espera 200
+GET {{baseUrl}}/obtener/despachos?estado_transaccion=DENEGADO

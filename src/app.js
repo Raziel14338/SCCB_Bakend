@@ -13,12 +13,15 @@ import cupos from './routes/cuposroutes.js'
 
 import usersRoutes from './routes/usersroutes.js'
 import authRoutes from './routes/authroutes.js'
+import conductores from './routes/conductoresroutes.js'
 
 import telemetria from './routes/telemetriaroutes.js'
 
 import operations from './routes/operationsroutes.js'
 
 import analitics from './routes/analiticsroutes.js'
+
+import vehiculos from './routes/vehiculosroutes.js'
 const app = express();
 
 
@@ -31,12 +34,13 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(cisternas);
 app.use(cupos);
+app.use(conductores);
 app.use(telemetria);
 app.use(operations);
 app.use(usersRoutes);
 app.use(authRoutes);
 app.use(analitics);
-
+app.use(vehiculos);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 

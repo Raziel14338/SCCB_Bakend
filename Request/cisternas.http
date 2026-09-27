@@ -1,138 +1,199 @@
-@api = http://localhost:3700
-@token = PEGAR_AQUI_EL_TOKEN_DEVUELTO_POR_LOGIN
+### ====================================================================
+### Pruebas HTTP - API de Gestión de Cisternas y Telemetría IoT
+### Compatible con REST Client (VS Code) / WebStorm HTTP Client
+### ====================================================================
 
-### ==========================================================
-### AUTH
-### ==========================================================
+@baseUrl = http://localhost:3700
+@placaTest = 1234-ABC
+@placaInexistente = 9999-ZZZ
+@contentType = application/json
 
-### Registrar un nuevo usuario (ej: fiscalizador de la ANH)
-POST {{api}}/auth/registro
-Content-Type: application/json
+### ====================================================================
+### 1. REGISTRO DE CISTERNAS
+### ====================================================================
 
-{
-  "nombre_usuario": "mrodriguez.anh",
-  "password": "ClaveSegura123",
-  "nombre_completo": "Mariana Rodríguez Peña",
-  "correo": "mrodriguez@anh.gob.bo",
-  "institucion": "ANH",
-  "id_rol": 2
-}
-
-### Registrar un administrador de red (rol usado por verificarRol)
-POST {{api}}/auth/registro
-Content-Type: application/json
+### 1.1 Registrar una cisterna nueva (caso exitoso, todos los campos)
+# Envía los 3 campos obligatorios + rfid_tag y sensor_iot_id opcionales.
+POST {{baseUrl}}/cisternas
+Content-Type: {{contentType}}
 
 {
-  "nombre_usuario": "aochoa.admin2",
-  "password": "ClaveSegura123",
-  "nombre_completo": "Ariel Ochoa Salazar",
-  "correo": "aochoa2@sistema.bo",
-  "institucion": "ADMIN_SISTEMA",
-  "id_rol": 3
+  "placa": "{{placaTest}}",
+  "rfid_tag": "RFID-0099887766",
+  "empresa_transporte": "Transportes del Altiplano S.A.",
+  "capacidad_total": 30000,
+  "sensor_iot_id": "IOT-SENSOR-045"
 }
 
-### Intentar registrar con un correo/usuario ya existente -> 409
-POST {{api}}/auth/registro
-Content-Type: application/json
+### 1.2 Registrar cisterna solo con campos obligatorios
+# rfid_tag y sensor_iot_id se omiten; el service los guarda como null.
+POST {{baseUrl}}/cisternas
+Content-Type: {{contentType}}
 
 {
-  "nombre_usuario": "mrodriguez.anh",
-  "password": "OtraClave123",
-  "nombre_completo": "Duplicado Test",
-  "correo": "mrodriguez@anh.gob.bo",
-  "institucion": "ANH",
-  "id_rol": 2
+  "placa": "5678-XYZ",
+  "empresa_transporte": "Hidrocarburos del Sur Ltda.",
+  "capacidad_total": 25000
 }
 
-### Registrar con rol inexistente -> 400
-POST {{api}}/auth/registro
-Content-Type: application/json
+### 1.3 Registrar cisterna duplicada (debe responder 409)
+# Usa la misma placa de 1.1; el service valida existencia previa.
+POST {{baseUrl}}/cisternas
+Content-Type: {{contentType}}
 
 {
-  "nombre_usuario": "usuario.rolfalso",
-  "password": "ClaveSegura123",
-  "nombre_completo": "Prueba Rol",
-  "correo": "prueba.rol@sistema.bo",
-  "institucion": "ANH",
-  "id_rol": 999
+  "placa": "{{placaTest}}",
+  "empresa_transporte": "Otra Empresa S.R.L.",
+  "capacidad_total": 20000
 }
 
-### Login correcto -> copiar el "token" de la respuesta a @token arriba
-POST {{api}}/auth/login
-Content-Type: application/json
+### 1.4 Registrar cisterna sin campos obligatorios (debe responder 400)
+# Falta empresa_transporte y capacidad_total.
+POST {{baseUrl}}/cisternas
+Content-Type: {{contentType}}
 
 {
-  "nombre_usuario": "mrodriguez.anh",
-  "password": "ClaveSegura123"
+  "placa": "0000-AAA"
 }
 
-### Login con contraseña incorrecta -> 401
-POST {{api}}/auth/login
-Content-Type: application/json
+### ====================================================================
+### 2. LISTADO DE CISTERNAS
+### ====================================================================
+
+### 2.1 Listar todas las cisternas (sin query params)
+GET {{baseUrl}}/obtener/cisternas
+
+### 2.2 Listar cisternas filtradas por estado OPERATIVA
+GET {{baseUrl}}/obtener/cisternas?estado=OPERATIVA
+
+### 2.3 Listar cisternas filtradas por estado MANTENIMIENTO
+GET {{baseUrl}}/obtener/cisternas?estado=MANTENIMIENTO
+
+### ====================================================================
+### 3. CONSULTA DE CISTERNA POR PLACA
+### ====================================================================
+
+### 3.1 Obtener cisterna existente por placa (caso exitoso)
+GET {{baseUrl}}/cisternas/{{placaTest}}
+
+### 3.2 Obtener cisterna con placa inexistente (debe responder 404)
+GET {{baseUrl}}/cisternas/{{placaInexistente}}
+
+### ====================================================================
+### 4. ACTUALIZACIÓN DE ESTADO
+### ====================================================================
+
+### 4.1 Cambiar estado a MANTENIMIENTO (caso exitoso)
+PATCH {{baseUrl}}/cisternas/{{placaTest}}/estado
+Content-Type: {{contentType}}
 
 {
-  "nombre_usuario": "mrodriguez.anh",
-  "password": "ClaveIncorrecta"
+  "estado": "MANTENIMIENTO"
 }
 
-### Login con usuario inexistente -> 401
-POST {{api}}/auth/login
-Content-Type: application/json
+### 4.2 Cambiar estado a FUERA_DE_SERVICIO (caso exitoso)
+PATCH {{baseUrl}}/cisternas/{{placaTest}}/estado
+Content-Type: {{contentType}}
 
 {
-  "nombre_usuario": "noexiste.usuario",
-  "password": "ClaveSegura123"
+  "estado": "FUERA_DE_SERVICIO"
 }
 
-### Perfil del usuario autenticado (requiere @token)
-GET {{api}}/auth/perfil
-Authorization: Bearer {{token}}
+### 4.3 Volver a dejar la cisterna OPERATIVA
+PATCH {{baseUrl}}/cisternas/{{placaTest}}/estado
+Content-Type: {{contentType}}
 
-### Perfil sin token -> 401
-GET {{api}}/auth/perfil
+{
+  "estado": "OPERATIVA"
+}
 
-### Perfil con token inválido -> 401
-GET {{api}}/auth/perfil
-Authorization: Bearer token.invalido.123
+### 4.4 Estado inválido (debe responder 400)
+# "DAÑADA" no está en la lista de estados permitidos.
+PATCH {{baseUrl}}/cisternas/{{placaTest}}/estado
+Content-Type: {{contentType}}
 
+{
+  "estado": "DAÑADA"
+}
 
-### ==========================================================
-### USERS  (todas requieren @token, ver middleware verificarToken)
-### ==========================================================
+### 4.5 Actualizar estado de placa inexistente (debe responder 404)
+PATCH {{baseUrl}}/cisternas/{{placaInexistente}}/estado
+Content-Type: {{contentType}}
 
-### Listar todos los usuarios
-GET {{api}}/users
-Authorization: Bearer {{token}}
+{
+  "estado": "OPERATIVA"
+}
 
-### Listar usuarios filtrando por nombre de rol
-GET {{api}}/users?rol=FISCAL_ANH
-Authorization: Bearer {{token}}
+### ====================================================================
+### 5. TELEMETRÍA IoT
+### ====================================================================
 
-### Listar usuarios filtrando por institución
-GET {{api}}/users?institucion=YPFB
-Authorization: Bearer {{token}}
+### 5.1 Registrar punto de telemetría (caso exitoso, todos los campos)
+# Coordenadas de referencia: ciudad de La Paz, Bolivia.
+POST {{baseUrl}}/cisternas/{{placaTest}}/telemetria
+Content-Type: {{contentType}}
 
-### Listar usuarios combinando filtros (rol + institución)
-GET {{api}}/users?rol=OPERADOR_ESTACION&institucion=ESTACION_SERVICIO
-Authorization: Bearer {{token}}
+{
+  "latitud": -16.500000,
+  "longitud": -68.150000,
+  "nivel_carga": 87.5,
+  "flujo_instantaneo": 12.3,
+  "velocidad_kmh": 45,
+  "evento": "EN_RUTA"
+}
 
-### Obtener perfil de un usuario puntual por id
-GET {{api}}/users/1
-Authorization: Bearer {{token}}
+### 5.2 Registrar telemetría solo con campos obligatorios
+# flujo_instantaneo, velocidad_kmh y evento son opcionales
+# (evento cae al default "EN_RUTA" definido en el service).
+POST {{baseUrl}}/cisternas/{{placaTest}}/telemetria
+Content-Type: {{contentType}}
 
-### Usuario inexistente -> 404
-GET {{api}}/users/9999
-Authorization: Bearer {{token}}
+{
+  "latitud": -16.502100,
+  "longitud": -68.133200,
+  "nivel_carga": 82.0
+}
 
-### Desactivar usuario (requiere rol ADMIN_RED en el token, ver verificarRol)
-PATCH {{api}}/users/1/desactivar
-Authorization: Bearer {{token}}
+### 5.3 Registrar telemetría con evento de descarga
+POST {{baseUrl}}/cisternas/{{placaTest}}/telemetria
+Content-Type: {{contentType}}
 
-### Reactivar usuario (requiere rol ADMIN_RED en el token)
-PATCH {{api}}/users/1/reactivar
-Authorization: Bearer {{token}}
+{
+  "latitud": -16.489500,
+  "longitud": -68.119000,
+  "nivel_carga": 10.0,
+  "flujo_instantaneo": 0,
+  "velocidad_kmh": 0,
+  "evento": "DESCARGA"
+}
 
-### Desactivar sin permisos de ADMIN_RED -> 403
-### (usar un @token de login con otro rol, ej. FISCAL_ANH u OPERADOR_YPFB)
-PATCH {{api}}/users/1/desactivar
-Authorization: Bearer {{token}}
+### 5.4 Registrar telemetría con campos obligatorios faltantes (debe responder 400)
+# Falta nivel_carga.
+POST {{baseUrl}}/cisternas/{{placaTest}}/telemetria
+Content-Type: {{contentType}}
+
+{
+  "latitud": -16.500000,
+  "longitud": -68.150000
+}
+
+### 5.5 Registrar telemetría para placa inexistente (debe responder 404)
+POST {{baseUrl}}/cisternas/{{placaInexistente}}/telemetria
+Content-Type: {{contentType}}
+
+{
+  "latitud": -16.500000,
+  "longitud": -68.150000,
+  "nivel_carga": 50
+}
+
+### 5.6 Obtener última telemetría registrada (caso exitoso)
+# Debe devolver el último punto insertado en 5.3.
+GET {{baseUrl}}/cisternas/{{placaTest}}/telemetria
+
+### 5.7 Obtener telemetría de una placa sin registros (debe responder 404)
+# Usa la cisterna creada en 1.2, que aún no tiene telemetría.
+GET {{baseUrl}}/cisternas/5678-XYZ/telemetria
+
+### 5.8 Obtener telemetría de placa inexistente (debe responder 404)
+GET {{baseUrl}}/cisternas/{{placaInexistente}}/telemetria

@@ -1,0 +1,184 @@
+### ====================================================================
+### Pruebas HTTP - Módulos de Usuarios (Personal) y Vehículos
+### Compatible con REST Client (VS Code) / WebStorm HTTP Client
+### NOTA: las rutas van directas en la raíz (sin prefijo /api).
+### ====================================================================
+
+@baseUrl = http://localhost:3700
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZF91c3VhcmlvIjo1LCJub21icmVfdXN1YXJpbyI6Im1yb2RyaWd1ZXouYW5oIiwiaW5zdGl0dWNpb24iOiJBTkgiLCJpZF9yb2wiOjIsIm5vbWJyZV9yb2wiOiJGSVNDQUxfQU5IIiwibml2ZWxfYWNjZXNvIjo0LCJpYXQiOjE3OTA0NDgyOTQsImV4cCI6MTc5MDQ3NzA5NH0.DV2ULWNt76eC8BrTJuy9m5O8-Siq21OzOuOyia3SfXE
+@idUsuario = 1
+@idUsuarioInexistente = 9999
+@placa = 1234ABC
+@placaInexistente = 0000ZZZ
+@rfid = A1B2C3D4
+@idConductor = 1
+@contentType = application/json
+
+### ====================================================================
+### 1. USUARIOS (requiere autenticación - verificarToken)
+### ====================================================================
+
+### 1.1 Listar usuarios sin filtros - Espera 200
+GET {{baseUrl}}/lista/users
+Authorization: Bearer {{token}}
+
+### 1.2 Listar usuarios filtrados por rol e institución - Espera 200
+GET {{baseUrl}}/lista/users?rol=FISCAL_ANH&institucion=ANH
+Authorization: Bearer {{token}}
+
+### 1.3 Falla al listar usuarios sin token - Espera 401
+# Sin header Authorization; debería ser rechazado por verificarToken.
+GET {{baseUrl}}/lista/users
+
+### 1.4 Obtener perfil de usuario por ID - Espera 200
+GET {{baseUrl}}/users/{{idUsuario}}
+Authorization: Bearer {{token}}
+
+### 1.5 Obtener perfil de usuario con ID inexistente - Espera 404
+GET {{baseUrl}}/users/{{idUsuarioInexistente}}
+Authorization: Bearer {{token}}
+
+### 1.6 Falla al obtener perfil sin token - Espera 401
+GET {{baseUrl}}/users/{{idUsuario}}
+
+### 1.7 Desactivar usuario (requiere rol ADMIN_RED) - Espera 200
+PATCH {{baseUrl}}/users/{{idUsuario}}/desactivar
+Authorization: Bearer {{token}}
+
+### 1.8 Falla al desactivar usuario inexistente - Espera 404
+PATCH {{baseUrl}}/users/{{idUsuarioInexistente}}/desactivar
+Authorization: Bearer {{token}}
+
+### 1.9 Falla al desactivar usuario sin token - Espera 401
+PATCH {{baseUrl}}/users/{{idUsuario}}/desactivar
+
+### 1.10 Reactivar usuario (requiere rol ADMIN_RED) - Espera 200
+PATCH {{baseUrl}}/users/{{idUsuario}}/reactivar
+Authorization: Bearer {{token}}
+
+### 1.11 Falla al reactivar usuario inexistente - Espera 404
+PATCH {{baseUrl}}/users/{{idUsuarioInexistente}}/reactivar
+Authorization: Bearer {{token}}
+
+### 1.12 Falla al reactivar usuario sin token - Espera 401
+PATCH {{baseUrl}}/users/{{idUsuario}}/reactivar
+
+### ====================================================================
+### 2. VEHÍCULOS
+### ====================================================================
+
+### 2.1 Registro exitoso de vehículo (todos los campos) - Espera 201
+POST {{baseUrl}}/vehiculos
+Content-Type: {{contentType}}
+
+{
+  "placa": "{{placa}}",
+  "rfid_tag": "{{rfid}}",
+  "tipo_vehiculo": "PESADO",
+  "capacidad_tanque": 300,
+  "id_conductor": {{idConductor}}
+}
+
+### 2.2 Registro de vehículo sin tipo_vehiculo (usa default "LIVIANO") - Espera 201
+POST {{baseUrl}}/vehiculos
+Content-Type: {{contentType}}
+
+{
+  "placa": "5678XYZ",
+  "rfid_tag": "E5F6G7H8",
+  "capacidad_tanque": 60,
+  "id_conductor": {{idConductor}}
+}
+
+### 2.3 Falla al registrar vehículo por falta de id_conductor - Espera 400
+POST {{baseUrl}}/vehiculos
+Content-Type: {{contentType}}
+
+{
+  "placa": "9012DEF",
+  "rfid_tag": "I9J0K1L2",
+  "capacidad_tanque": 150
+}
+
+### 2.4 Falla al registrar vehículo por falta de placa - Espera 400
+POST {{baseUrl}}/vehiculos
+Content-Type: {{contentType}}
+
+{
+  "rfid_tag": "M3N4O5P6",
+  "capacidad_tanque": 150,
+  "id_conductor": {{idConductor}}
+}
+
+### 2.5 Falla al registrar vehículo duplicado (misma placa o RFID) - Espera 409
+# Usa la misma placa/rfid de 2.1.
+POST {{baseUrl}}/vehiculos
+Content-Type: {{contentType}}
+
+{
+  "placa": "{{placa}}",
+  "rfid_tag": "{{rfid}}",
+  "capacidad_tanque": 200,
+  "id_conductor": {{idConductor}}
+}
+
+### 2.6 Falla al registrar vehículo con conductor inexistente - Espera 400
+POST {{baseUrl}}/vehiculos
+Content-Type: {{contentType}}
+
+{
+  "placa": "QRST123",
+  "rfid_tag": "Q7R8S9T0",
+  "capacidad_tanque": 180,
+  "id_conductor": 999999
+}
+
+### 2.7 Listar todos los vehículos (sin filtros) - Espera 200
+GET {{baseUrl}}/obtener/vehiculos
+
+### 2.8 Listar vehículos filtrados por estado e id_conductor - Espera 200
+GET {{baseUrl}}/obtener/vehiculos?estado=ACTIVO&id_conductor=3
+
+### 2.9 Obtener vehículo por placa (usado por módulo OCR) - Espera 200
+GET {{baseUrl}}/vehiculos/placa/{{placa}}
+
+### 2.10 Obtener vehículo con placa inexistente - Espera 404
+GET {{baseUrl}}/vehiculos/placa/{{placaInexistente}}
+
+### 2.11 Obtener vehículo por RFID (usado por surtidor) - Espera 200
+GET {{baseUrl}}/vehiculos/rfid/{{rfid}}
+
+### 2.12 Obtener vehículo con RFID inexistente - Espera 404
+GET {{baseUrl}}/vehiculos/rfid/RFID-NO-EXISTE
+
+### 2.13 Actualizar estado de vehículo a BLOQUEADO - Espera 200
+PATCH {{baseUrl}}/vehiculos/{{placa}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "BLOQUEADO"
+}
+
+### 2.14 Volver a dejar el vehículo ACTIVO - Espera 200
+PATCH {{baseUrl}}/vehiculos/{{placa}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "ACTIVO"
+}
+
+### 2.15 Falla por estado inválido "EN_TALLER" - Espera 400
+PATCH {{baseUrl}}/vehiculos/{{placa}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "EN_TALLER"
+}
+
+### 2.16 Falla al actualizar estado de placa inexistente - Espera 404
+PATCH {{baseUrl}}/vehiculos/{{placaInexistente}}/estado
+Content-Type: {{contentType}}
+
+{
+  "estado": "ACTIVO"
+}

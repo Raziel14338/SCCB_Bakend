@@ -1,0 +1,145 @@
+### ====================================================================
+### Pruebas HTTP - API de Gestión de Cupos y Autorización de Despachos
+### Compatible con REST Client (VS Code) / WebStorm HTTP Client
+### NOTA: las rutas van directas en la raíz (sin prefijo /api).
+### ====================================================================
+
+@baseUrl = http://localhost:3700
+@placaTest = 1234-ABC
+@placaInexistente = 9999-ZZZ
+@rfidTest = 04-AB-CD-EF-12-34-56
+@contentType = application/json
+
+### ====================================================================
+### 1. REGISTRO DE CUPOS
+### ====================================================================
+
+### 1.1 Asigna un cupo mensual - Espera 201
+POST {{baseUrl}}/cupos
+Content-Type: {{contentType}}
+
+{
+  "placa": "{{placaTest}}",
+  "volumen_autorizado": 500,
+  "periodo": "MENSUAL",
+  "fecha_inicio": "2026-09-01",
+  "fecha_fin": "2026-09-30"
+}
+
+### 1.2 Asigna un cupo sin especificar "periodo" - Espera 201
+# El service usa "MENSUAL" como valor por defecto cuando se omite.
+POST {{baseUrl}}/cupos
+Content-Type: {{contentType}}
+
+{
+  "placa": "{{placaTest}}",
+  "volumen_autorizado": 300,
+  "fecha_inicio": "2026-10-01",
+  "fecha_fin": "2026-10-31"
+}
+
+### 1.3 Falla por falta de fecha_fin - Espera 400
+# El controlador exige placa, volumen_autorizado, fecha_inicio y fecha_fin.
+POST {{baseUrl}}/cupos
+Content-Type: {{contentType}}
+
+{
+  "placa": "{{placaTest}}",
+  "volumen_autorizado": 400,
+  "fecha_inicio": "2026-11-01"
+}
+
+### 1.4 Falla por vehículo/placa inexistente - Espera 404
+# El service valida que la placa exista en la tabla vehiculos.
+POST {{baseUrl}}/cupos
+Content-Type: {{contentType}}
+
+{
+  "placa": "{{placaInexistente}}",
+  "volumen_autorizado": 200,
+  "fecha_inicio": "2026-09-01",
+  "fecha_fin": "2026-09-30"
+}
+
+### ====================================================================
+### 2. CONSULTA DE CUPOS POR VEHÍCULO
+### ====================================================================
+
+### 2.1 Listar historial completo de cupos de un vehículo - Espera 200
+GET {{baseUrl}}/cupos/vehiculo/{{placaTest}}
+
+### 2.2 Listar historial de un vehículo sin cupos registrados - Espera 200 (lista vacía)
+GET {{baseUrl}}/cupos/vehiculo/{{placaInexistente}}
+
+### 2.3 Consultar el cupo vigente de un vehículo - Espera 200
+GET {{baseUrl}}/cupos/vehiculo/{{placaTest}}/vigente
+
+### 2.4 Consultar cupo vigente de vehículo sin cupo activo - Espera 404
+GET {{baseUrl}}/cupos/vehiculo/{{placaInexistente}}/vigente
+
+### ====================================================================
+### 3. VALIDACIÓN RÁPIDA POR RFID (solo lectura, pantalla del surtidor)
+### ====================================================================
+
+### 3.1 Validar por RFID sin volumen solicitado - Espera 200
+GET {{baseUrl}}/cupos/validar/{{rfidTest}}
+
+### 3.2 Validar por RFID con volumen solicitado de 50 litros - Espera 200
+GET {{baseUrl}}/cupos/validar/{{rfidTest}}?volumen=50
+
+### 3.3 Validar por RFID inexistente - Espera 200 (autorizado: false)
+# El service responde 200 igual, con autorizado=false y mensaje explicativo.
+GET {{baseUrl}}/cupos/validar/00-00-00-00-00-00-00
+
+### ====================================================================
+### 4. VALIDACIÓN Y CONSUMO DE DESPACHO (operación atómica vía SP)
+### ====================================================================
+
+### 4.1 Valida y consume despacho de 30 litros - Espera 200 (autorizado: true)
+POST {{baseUrl}}/cupos/vehiculo/{{placaTest}}/validar-despacho
+Content-Type: {{contentType}}
+
+{
+  "volumen_solicitado": 30
+}
+
+### 4.2 Valida despacho con volumen mayor al disponible - Espera 403
+# Requiere que el cupo vigente ya tenga poco saldo disponible (por ejemplo,
+# tras repetir 4.1 varias veces o con un cupo de bajo volumen_autorizado).
+POST {{baseUrl}}/cupos/vehiculo/{{placaTest}}/validar-despacho
+Content-Type: {{contentType}}
+
+{
+  "volumen_solicitado": 100000
+}
+
+### 4.3 Valida despacho negativo - Espera 400
+POST {{baseUrl}}/cupos/vehiculo/{{placaTest}}/validar-despacho
+Content-Type: {{contentType}}
+
+{
+  "volumen_solicitado": -10
+}
+
+### 4.4 Valida despacho con volumen en cero - Espera 400
+POST {{baseUrl}}/cupos/vehiculo/{{placaTest}}/validar-despacho
+Content-Type: {{contentType}}
+
+{
+  "volumen_solicitado": 0
+}
+
+### 4.5 Valida despacho sin campo volumen_solicitado - Espera 400
+POST {{baseUrl}}/cupos/vehiculo/{{placaTest}}/validar-despacho
+Content-Type: {{contentType}}
+
+{}
+
+### 4.6 Valida despacho para placa sin cupo vigente - Espera 403
+# El SP debe responder autorizado=false por falta de cupo vigente.
+POST {{baseUrl}}/cupos/vehiculo/{{placaInexistente}}/validar-despacho
+Content-Type: {{contentType}}
+
+{
+  "volumen_solicitado": 20
+}
