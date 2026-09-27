@@ -6,7 +6,9 @@
   "scripts": {
     "build": "npx babel src -d dist",
     "dev": "nodemon src --exec babel-node",
-    "start": "node dist"
+    "start": "node dist",
+    "proteus":"npx babel-node Script/proteusSerialBridge.js",
+    "arduino":"npx babel-node Script/simularArduino.js"
   },
   "keywords": [],
   "author": "",
