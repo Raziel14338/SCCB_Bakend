@@ -21,7 +21,7 @@ import { SerialPort } from "serialport";
 
 const PUERTO_ARDUINO = process.env.SERIAL_PORT_ARDUINO || "COM3"; // el extremo que en la vida real usaría Proteus
 const BAUD_RATE = Number(process.env.SERIAL_BAUD_RATE || 9600);
-const ID_CISTERNA_PRUEBA = Number(process.env.ID_CISTERNA_PRUEBA || 1); // debe existir en tu tabla `cisternas`
+const ID_CISTERNA_PRUEBA = Number(process.env.ID_CISTERNA_PRUEBA || 5 ); // debe existir en tu tabla `cisternas`
 
 const puerto = new SerialPort({ path: PUERTO_ARDUINO, baudRate: BAUD_RATE }, (err) => {
     if (err) {
